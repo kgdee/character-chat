@@ -19,9 +19,9 @@
     <audio id="audioPlayer" hidden></audio>
     <div class="app container">
       <header class="navbar">
-        <div class="logo" onclick="toggleMessagesDisplay()"><img src="assets/images/logo.png"> <span>Ch. Chat</span></div>
+        <div class="logo" onclick="toggleMessagesDisplay()"><img src="assets/images/logo.png" /> <span>Ch. Chat</span></div>
         <img class="avatar hidden" src="assets/images/default-avatar.jpg" />
-        <button class="menu-btn" onclick="CharactersModal.open()">
+        <button class="menu-btn" onclick="toggleMenuModal()">
           <i class="bi bi-list"></i>
         </button>
       </header>
@@ -29,12 +29,70 @@
       <div class="messages-container">
         <div class="messages-display"></div>
         <div class="message typing-indicator hidden">...</div>
-        <div class="system-notice">Enter your API key above to start chatting with Gemini.</div>
+        <div class="system-notice hidden"></div>
       </div>
 
       <div class="message-input">
         <textarea class="hide-scrollbar" placeholder="Type a message..." rows="1"></textarea>
         <button class="button" onclick="sendMessage()">Send</button>
+        <button class="go-on-btn hidden" onclick="goOn()"><i class="bi bi-caret-right"></i></button>
+      </div>
+
+      <!-- Menu modal -->
+      <div class="menu-modal list-modal modal hidden" onclick="toggleMenuModal()">
+        <div class="container">
+          <div class="modal-content" onclick="stopPropagation(event)">
+            <button class="close" onclick="toggleMenuModal()">
+              <i class="bi bi-x-lg"></i>
+            </button>
+            <div class="title">Menu</div>
+
+            <div class="item-list hide-scrollbar">
+              <label class="item" onclick="CharactersModal.open()">
+                <i class="bi bi-heart"></i>
+                <div class="label">
+                  Characters
+                  <span>Select a character</span>
+                </div>
+                <div class="arrow">›</div>
+              </label>
+
+              <label class="item">
+                <i class="bi bi-person-circle"></i>
+                <div class="label" onclick="changeUserName()">
+                  Username
+                  <span>Change your username</span>
+                </div>
+                <div class="arrow">›</div>
+              </label>
+
+              <label class="item">
+                <i class="bi bi-file-earmark"></i>
+                <div class="label">
+                  Model
+                  <select class="model-select" onchange="changeModel(this.value)">
+                    <option value="gemini-3.8-flash">Gemini 3.8 Flash</option>
+                    <option value="gemini-3.7-flash">Gemini 3.7 Flash</option>
+                    <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+                    <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite</option>
+                  </select>
+                </div>
+              </label>
+
+              <label class="item hidden">
+                <i class="bi bi-moon"></i>
+                <div class="label">
+                  Dark theme
+                  <span class="theme-desc" id="themeText"> Enabled </span>
+                </div>
+                <label class="toggle">
+                  <input class="theme-checkbox" type="checkbox" onchange="toggleTheme()" />
+                  <span class="slider"></span>
+                </label>
+              </label>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Character modal -->

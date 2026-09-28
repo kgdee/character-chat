@@ -1,7 +1,4 @@
 const PROJECT_NAME = "character-chat";
-const geminiApiKey = CONFIG.GEMINI_API_KEY;
-const MODEL_NAME = "gemini-3.8-flash";
-const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${geminiApiKey}`;
 
 const VOICES = [
   { id: "EXAVITQu4vr4xnSDxMaL", name: "Bella (Soft, warm)" },

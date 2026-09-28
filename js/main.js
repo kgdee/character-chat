@@ -4,13 +4,20 @@ const systemNotice = document.querySelector(".system-notice");
 const typingIndicator = document.querySelector(".typing-indicator");
 const messageInput = document.querySelector(".message-input textarea");
 const audioPlayer = document.getElementById("audioPlayer");
+const goOnBtn = document.querySelector(".go-on-btn");
+const menuModal = document.querySelector(".menu-modal");
+const modelSelect = document.querySelector(".model-select");
 
 const greetings = ["Where should we start?", "What can I help with?", "What should we focus on?"];
 
-let userName = "Traveler";
+const geminiApiKey = CONFIG.GEMINI_API_KEY;
+let currentModel = load("currentModel", "gemini-3.5-flash-lite");
+
+let currentUserName = load("currentUserName", "Traveler");
 // Define your bot's identity and behavioral rules
 let systemPrompt = "";
 
+let darkTheme = load("darkTheme", true);
 // Maintain conversation history for multi-turn context
 const chatHistory = [];
 let currentCharacters = load("currentCharacters", INITIAL_CHARACTERS);
@@ -18,8 +25,13 @@ let currentCharacter = null;
 let isLoading = false;
 
 document.addEventListener("DOMContentLoaded", () => {
-  systemNotice.textContent = getRandomItem(greetings);
+  initChat();
+  updateUI();
 });
+
+function getApiUrl() {
+  return `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${geminiApiKey}`;
+}
 
 function initChat() {
   messagesDisplay.innerHTML = "";
@@ -32,16 +44,22 @@ function initChat() {
     });
 
     appendMessage("ai", currentCharacter.greeting);
+  } else {
+    systemNotice.textContent = getRandomItem(greetings);
   }
-
-  updateUI();
 }
 
 function updateUI() {
+  modelSelect.value = currentModel;
+
+  goOnBtn.classList.toggle("hidden", !currentCharacter);
+  systemNotice.classList.toggle("hidden", currentCharacter);
+
+  toggleTheme(darkTheme);
   document.body.style.background = currentCharacter?.image ? `url("${currentCharacter.image}") top center / cover no-repeat fixed` : "";
 
   document.title = `${currentCharacter?.name ? `${currentCharacter.name} - ` : ""}Character Chat`;
-  navbarTitleEl.textContent = currentCharacter?.name || "Character Chat";
+  navbarTitleEl.textContent = currentCharacter?.name || "Ch. Chat";
 }
 
 function applyCharacter(character) {
@@ -50,8 +68,9 @@ function applyCharacter(character) {
   systemPrompt = `This is a roleplay chat. Constraints: Keep answers brief (under 3 sentences). Use narrative text like *example* if needed. Your role: "${currentCharacter.intro}. ${currentCharacter.background}". Scenario: You meet me (a male stranger)`;
 
   initChat();
+  updateUI();
   toggleFullscreen(true);
-  Toast.show("Character applied successfully");
+  toggleMenuModal(false);
 }
 
 function scrollToBottom() {
@@ -76,7 +95,7 @@ function loading(state) {
   if (state) scrollToBottom();
 }
 
-async function fetchData(userPrompt) {
+async function fetchData(userPrompt = "*You act*") {
   try {
     // Add the new user message to the history
     chatHistory.push({
@@ -84,7 +103,7 @@ async function fetchData(userPrompt) {
       parts: [{ text: userPrompt }],
     });
 
-    const response = await fetch(API_URL, {
+    const response = await fetch(getApiUrl(), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -113,7 +132,7 @@ async function fetchData(userPrompt) {
 
     // Add the bot's response back into the history so it remembers it next time
     chatHistory.push({
-      role: "model", // Must be "model" (or "user" for input), not "assistant"
+      role: "model",
       parts: [{ text: botReply }],
     });
 
@@ -137,6 +156,19 @@ async function sendMessage() {
   loading(true);
 
   const reply = await fetchData(text);
+
+  appendMessage("ai", reply);
+
+  loading(false);
+}
+
+async function goOn() {
+  if (isLoading) return;
+  if (!currentCharacter) return;
+
+  loading(true);
+
+  const reply = await fetchData();
 
   appendMessage("ai", reply);
 
@@ -190,7 +222,7 @@ function formatCharacter(character) {
   // Helper function to replace placeables in strings
   const replacePlaceholders = (str) => {
     if (typeof str !== "string") return str;
-    return str.replaceAll("{char}", characterName).replaceAll("{user}", userName);
+    return str.replaceAll("{char}", characterName).replaceAll("{user}", currentUserName);
   };
 
   // Iterate over all keys in the object
@@ -206,6 +238,35 @@ function formatCharacter(character) {
 function toggleMessagesDisplay() {
   if (!currentCharacter) return;
   messagesDisplay.classList.toggle("invisible");
+}
+
+function toggleMenuModal(force) {
+  const shouldHide = force !== undefined ? !force : undefined;
+  menuModal.classList.toggle("hidden", shouldHide);
+}
+
+async function changeUserName() {
+  const newUserName = prompt("Enter your new user name:", currentUserName);
+
+  if (newUserName && newUserName.trim() !== "") {
+    currentUserName = newUserName;
+    save("currentUserName", currentUserName);
+  }
+}
+
+function changeModel(model) {
+  currentModel = model;
+  save("currentModel", currentModel);
+}
+
+function toggleTheme(force = undefined) {
+  const checkbox = document.querySelector(".theme-checkbox");
+  const descEl = document.querySelector(".theme-desc");
+  force === undefined ? (darkTheme = !darkTheme) : (darkTheme = force);
+  save("darkTheme", darkTheme);
+  document.body.classList.toggle("dark-theme", darkTheme);
+  checkbox.checked = darkTheme;
+  descEl.textContent = darkTheme ? "Enabled" : "Disabled";
 }
 
 const keyActions = {
