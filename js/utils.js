@@ -1,0 +1,151 @@
+window.addEventListener("error", (event) => {
+  const error = `${event.type}: ${event.message}`;
+  console.error(error);
+  alert(error);
+});
+
+function stopPropagation(event) {
+  event.stopPropagation();
+}
+
+function save(key, value) {
+  localStorage.setItem(`${PROJECT_NAME}_${key}`, JSON.stringify(value));
+}
+
+function load(key, defaultValue) {
+  const savedValue = localStorage.getItem(`${PROJECT_NAME}_${key}`);
+  if (savedValue == null) return defaultValue;
+  return JSON.parse(savedValue);
+}
+
+function reset(key) {
+  localStorage.removeItem(`${PROJECT_NAME}_${key}`);
+}
+
+function sleep(ms) {
+  if (ms <= 0) return Promise.resolve();
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function randomInt(min, max) {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function getFileName(file) {
+  const fileName = file.name
+  const lastDotIndex = fileName.lastIndexOf('.');
+  if (lastDotIndex <= 0) return fileName;
+  
+  return fileName.slice(0, lastDotIndex);
+}
+
+function getFileDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => resolve(event.target.result);
+    reader.onerror = (error) => reject(error);
+    reader.readAsDataURL(file);
+  });
+}
+
+function download(url, name) {
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = name;
+
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  URL.revokeObjectURL(url);
+}
+
+function toggleHide(element) {
+  element.classList.toggle("hidden");
+}
+
+function toggleFullscreen(force) {
+  if (document.fullscreenElement && force !== true) {
+    document.exitFullscreen();
+  } else if (force !== false) {
+    document.documentElement.requestFullscreen();
+  }
+}
+
+function getRandomItem(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function getUniqueItems(arr, count) {
+  if (!Array.isArray(arr) || count <= 0) return [];  
+  const k = Math.min(count, arr.length);
+  const result = [...arr];
+  for (let i = 0; i < k; i++) {
+    const randIndex = Math.floor(Math.random() * (result.length - i)) + i;
+    [result[i], result[randIndex]] = [result[randIndex], result[i]];
+  }
+  return result.slice(0, k);
+}
+
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    // Pick a random index from 0 to i
+    const j = Math.floor(Math.random() * (i + 1));
+    
+    // Swap elements at indices i and j
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+async function handleImageFile(file, maxSize = 128) {
+  const dataUrl = await getFileDataUrl(file);
+  const img = await loadImage(dataUrl);
+
+  let width = img.width;
+  let height = img.height;
+
+  if (width > height) {
+    if (width > maxSize) {
+      height = Math.round((height * maxSize) / width);
+      width = maxSize;
+    }
+  } else {
+    if (height > maxSize) {
+      width = Math.round((width * maxSize) / height);
+      height = maxSize;
+    }
+  }
+
+  // Draw on standard HTML canvas
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0, width, height);
+
+  // Return Data URL (base64 string) directly
+  const mimeType = file?.type || file?.mimeType || "image/png";
+  return canvas.toDataURL(mimeType);
+}
+
+function removeEmphasized(text) {
+  return text.replace(/\s?\*[^*]+\*\s?/g, ' ').trim();
+}
+
+function escapeHTML(str) {
+  return String(str ?? "").replace(/[&<>"']/g, (match) => {
+    const escapeMap = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
+    return escapeMap[match];
+  });
+}
