@@ -7,6 +7,7 @@
     <link rel="icon" type="image/png" href="favicon.png" />
     <link href="vendor/bootstrap-icons-1.13.1/bootstrap-icons.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="css/main.css" />
+    <script src="config.js"></script>
     <script src="js/constants.js" defer></script>
     <script src="js/utils.js" defer></script>
     <script src="js/main.js" defer></script>
@@ -18,7 +19,7 @@
     <audio id="audioPlayer" hidden></audio>
     <div class="app container">
       <header class="navbar">
-        <h1 class="title">Character Chat</h1>
+        <div class="logo" onclick="toggleMessagesDisplay()"><img src="assets/images/logo.png"> <span>Ch. Chat</span></div>
         <img class="avatar hidden" src="assets/images/default-avatar.jpg" />
         <button class="menu-btn" onclick="CharactersModal.open()">
           <i class="bi bi-list"></i>

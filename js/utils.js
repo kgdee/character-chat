@@ -1,8 +1,13 @@
 window.addEventListener("error", (event) => {
   const error = `${event.type}: ${event.message}`;
+  handleError(error);
+});
+
+function handleError(error) {
   console.error(error);
   alert(error);
-});
+  location.reload();
+}
 
 function stopPropagation(event) {
   event.stopPropagation();
@@ -34,10 +39,10 @@ function randomInt(min, max) {
 }
 
 function getFileName(file) {
-  const fileName = file.name
-  const lastDotIndex = fileName.lastIndexOf('.');
+  const fileName = file.name;
+  const lastDotIndex = fileName.lastIndexOf(".");
   if (lastDotIndex <= 0) return fileName;
-  
+
   return fileName.slice(0, lastDotIndex);
 }
 
@@ -80,7 +85,7 @@ function getRandomItem(arr) {
 }
 
 function getUniqueItems(arr, count) {
-  if (!Array.isArray(arr) || count <= 0) return [];  
+  if (!Array.isArray(arr) || count <= 0) return [];
   const k = Math.min(count, arr.length);
   const result = [...arr];
   for (let i = 0; i < k; i++) {
@@ -94,7 +99,7 @@ function shuffle(array) {
   for (let i = array.length - 1; i > 0; i--) {
     // Pick a random index from 0 to i
     const j = Math.floor(Math.random() * (i + 1));
-    
+
     // Swap elements at indices i and j
     [array[i], array[j]] = [array[j], array[i]];
   }
@@ -134,7 +139,7 @@ async function handleImageFile(file, maxSize = 128) {
 }
 
 function removeEmphasized(text) {
-  return text.replace(/\s?\*[^*]+\*\s?/g, ' ').trim();
+  return text.replace(/\s?\*[^*]+\*\s?/g, " ").trim();
 }
 
 function escapeHTML(str) {

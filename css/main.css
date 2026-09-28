@@ -59,14 +59,31 @@ button {
   background-color: var(--red);
 }
 
+input[type="text"],
+input[type="number"],
+textarea {
+  font-family: "Poppins", sans-serif;
+}
+
 .truncated {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.truncated-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .hidden {
   display: none !important;
+}
+
+.invisible {
+  visibility: hidden !important;
 }
 
 .hide-scrollbar {
@@ -161,9 +178,19 @@ body {
   flex-wrap: wrap;
 }
 
-.navbar h1 {
+.navbar .logo {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   font-size: 1.1rem;
   font-weight: bold;
+  cursor: pointer;
+}
+
+.navbar .logo img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
 }
 
 .navbar .avatar {
@@ -195,6 +222,7 @@ body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+  width: max-content;
 }
 
 .messages-display {
@@ -208,7 +236,7 @@ body {
   max-width: 80%;
   padding: 12px 16px;
   border-radius: 12px;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.7);
   color: var(--text-color);
   line-height: 1.5;
   font-size: 0.95rem;
@@ -335,14 +363,16 @@ body {
   object-position: top;
 }
 
-.characters-modal .items-grid .item .name {
+.characters-modal .items-grid .item .item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
   padding: 5px;
 }
 
 .characters-modal .items-grid .item .desc {
   max-height: 70px;
   overflow: hidden;
-  padding: 5px;
   font-size: 0.9rem;
   opacity: 0.8;
 }

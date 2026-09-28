@@ -4,15 +4,19 @@ const CharactersModal = (() => {
 
   function updateUI() {
     itemsGrid.innerHTML = currentCharacters
-      .map(
-        (item) => `
-      <div class="item" onclick="CharactersModal.handleItemClick('${item.name}')">
-        <img src="${item.image}">
-        <div class="name truncated">${item.name}</div>
-        <div class="desc">${item.intro}</div>
-      </div>  
-    `,
-      )
+      .map((item) => {
+        item = formatCharacter(item);
+
+        return `
+          <div class="item" onclick="CharactersModal.handleItemClick('${item.name}')">
+            <img src="${item.image}">
+            <div class="item-body">
+              <div class="name truncated">${item.name}</div>
+              <div class="desc truncated-3">${item.intro}</div>
+            </div>
+          </div>  
+        `;
+      })
       .join("");
   }
 
