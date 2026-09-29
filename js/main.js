@@ -60,7 +60,7 @@ function addMessage(role, text) {
   };
 
   currentMessages.push(msgData);
-  if (currentMessages.length > 3) currentMessages.shift();
+  if (currentMessages.length > maxMessages) currentMessages.shift();
 
   save(`currentMessages_${currentCharacter?.name}`, currentMessages);
 
