@@ -1,4 +1,5 @@
 const navbarTitleEl = document.querySelector(".navbar .logo span");
+const chatBody = document.querySelector(".chat-body");
 const messagesDisplay = document.querySelector(".messages-display");
 const systemNotice = document.querySelector(".system-notice");
 const typingIndicator = document.querySelector(".typing-indicator");
@@ -7,26 +8,29 @@ const audioPlayer = document.getElementById("audioPlayer");
 const goOnBtn = document.querySelector(".go-on-btn");
 const menuModal = document.querySelector(".menu-modal");
 const modelSelect = document.querySelector(".model-select");
-
-const greetings = ["Where should we start?", "What can I help with?", "What should we focus on?"];
+const voiceSelect = document.querySelector(".voice-select");
 
 const geminiApiKey = CONFIG.GEMINI_API_KEY;
-let currentModel = load("currentModel", "gemini-3.5-flash-lite");
+const elevenlabsApiKey = CONFIG.ELEVENLABS_API_KEY;
 
+const greetings = ["Where should we start?", "What can I help with?", "What should we focus on?"];
+const goOnMsg = "*You act*";
+const maxMessages = 100;
+
+let currentModel = load("currentModel", "gemini-3.5-flash-lite");
 let currentUserName = load("currentUserName", "Traveler");
 // Define your bot's identity and behavioral rules
 let systemPrompt = "";
-
-let darkTheme = load("darkTheme", true);
-// Maintain conversation history for multi-turn context
-const chatHistory = [];
+let voices = [];
+let currentMessages = [];
 let currentCharacters = load("currentCharacters", INITIAL_CHARACTERS);
 let currentCharacter = null;
+let darkTheme = load("darkTheme", true);
 let isLoading = false;
 
 document.addEventListener("DOMContentLoaded", () => {
+  populateVoiceList();
   initChat();
-  updateUI();
 });
 
 function getApiUrl() {
@@ -34,26 +38,97 @@ function getApiUrl() {
 }
 
 function initChat() {
+  currentMessages = load(`currentMessages_${currentCharacter?.name}`, []);
   messagesDisplay.innerHTML = "";
 
-  if (currentCharacter) {
+  if (currentCharacter && currentMessages.length <= 0) {
     // Add the greeting message to the history
-    chatHistory.push({
-      role: "model",
-      parts: [{ text: currentCharacter.greeting }],
-    });
+    addMessage("model", currentCharacter.greeting);
+  }
 
-    appendMessage("ai", currentCharacter.greeting);
+  toggleMenuModal(false);
+  updateUI();
+
+  if (currentMessages.length === 1 && currentMessages[0].role !== "user") speakMessage(currentMessages[0].id);
+}
+
+function addMessage(role, text) {
+  const msgData = {
+    id: generateId(),
+    role: role,
+    parts: [{ text: text }],
+  };
+
+  currentMessages.push(msgData);
+  if (currentMessages.length > 3) currentMessages.shift();
+
+  save(`currentMessages_${currentCharacter?.name}`, currentMessages);
+
+  if (text !== goOnMsg) appendMessage(msgData);
+}
+
+async function deleteMessage(messageId, showConfirm = false) {
+  const index = currentMessages.findIndex((item) => item.id === messageId);
+  if (index === -1) return;
+
+  if (showConfirm) {
+    const confirmed = await ConfirmModal.confirmAction(`Delete message?`, "This action cannot be undone.");
+    if (!confirmed) return;
+  }
+
+  currentMessages = currentMessages.slice(0, index);
+
+  save(`currentMessages_${currentCharacter?.name}`, currentMessages);
+
+  updateUI();
+}
+
+async function redoMessage(messageId) {
+  const index = currentMessages.findIndex((item) => item.id === messageId);
+  if (index === -1) return;
+
+  const confirmed = await ConfirmModal.confirmAction(`Redo message?`, "This action cannot be undone.");
+  if (!confirmed) return;
+
+  let userMessage = null;
+  // Loop backward from the target index to find the most recent user message
+  for (let i = index; i >= 0; i--) {
+    if (currentMessages[i].role === "user") {
+      userMessage = { ...currentMessages[i] };
+    }
+  }
+
+  if (userMessage) {
+    await deleteMessage(userMessage.id);
+    sendMessage(userMessage.parts[0].text);
   } else {
-    systemNotice.textContent = getRandomItem(greetings);
+    await deleteMessage(messageId);
+    goOn();
   }
 }
 
+async function restartChat() {
+  const confirmed = await ConfirmModal.confirmAction(`Restart this chat?`, "This will clear your conversation and start a new session.");
+  if (!confirmed) return;
+
+  currentMessages = [];
+  save(`currentMessages_${currentCharacter?.name}`, currentMessages);
+  initChat();
+}
+
+function renderMessages() {
+  messagesDisplay.innerHTML = currentMessages.map((item) => (item.parts[0].text === goOnMsg ? "" : createMessageHTML(item))).join("");
+}
+
 function updateUI() {
+  renderMessages();
+
   modelSelect.value = currentModel;
 
   goOnBtn.classList.toggle("hidden", !currentCharacter);
-  systemNotice.classList.toggle("hidden", currentCharacter);
+
+  systemNotice.classList.toggle("hidden", currentCharacter || currentMessages.length > 0);
+  if (!currentCharacter) systemNotice.textContent = getRandomItem(greetings);
 
   toggleTheme(darkTheme);
   document.body.style.background = currentCharacter?.image ? `url("${currentCharacter.image}") top center / cover no-repeat fixed` : "";
@@ -68,25 +143,40 @@ function applyCharacter(character) {
   systemPrompt = `This is a roleplay chat. Constraints: Keep answers brief (under 3 sentences). Use narrative text like *example* if needed. Your role: "${currentCharacter.intro}. ${currentCharacter.background}". Scenario: You meet me (a male stranger)`;
 
   initChat();
-  updateUI();
-  toggleFullscreen(true);
-  toggleMenuModal(false);
 }
 
 function scrollToBottom() {
-  messagesDisplay.scrollTop = messagesDisplay.scrollHeight;
+  chatBody.scrollTop = chatBody.scrollHeight;
 }
 
-function appendMessage(role, text) {
+function appendMessage(data) {
   systemNotice.classList.add("hidden");
 
-  // Escape and wrap asterisks with span
-  const safeText = escapeHTML(text).replace(/\*[^*]+\*/g, "<span>$&</span>");
-  const messageHtml = `<div class="message ${role}">${safeText}</div>`;
-  messagesDisplay.insertAdjacentHTML("beforeend", messageHtml);
+  messagesDisplay.insertAdjacentHTML("beforeend", createMessageHTML(data));
 
-  if (role === "ai") listenText(removeEmphasized(text));
+  if (data.role !== "user") speakMessage(data.id);
   scrollToBottom();
+}
+
+function createMessageHTML(data) {
+  const safeText = escapeHTML(data.parts[0].text).replace(/\*[^*]+\*/g, "<span>$&</span>");
+  const role = data.role === "user" ? data.role : "ai";
+  const isUser = role === "user";
+
+  const messageHtml = `
+  <div class="message ${role}" data-id="${data.id}">
+    <div class="text-box">
+      ${safeText}
+    </div>
+    <div class="actions">
+      <button onclick="speakMessage('${data.id}')"><i class="bi bi-volume-up"></i></button>
+      <button onclick="copyMessage('${data.id}')"><i class="bi bi-copy"></i></button>
+      ${!isUser ? `<button onclick="redoMessage('${data.id}')"><i class="bi bi-arrow-clockwise"></i></button>` : ""}
+      ${isUser ? `<button onclick="deleteMessage('${data.id}', true)"><i class="bi bi-trash"></i></button>` : ""}
+    </div>
+  </div>`;
+
+  return messageHtml;
 }
 
 function loading(state) {
@@ -97,11 +187,7 @@ function loading(state) {
 
 async function fetchData(userPrompt = "*You act*") {
   try {
-    // Add the new user message to the history
-    chatHistory.push({
-      role: "user",
-      parts: [{ text: userPrompt }],
-    });
+    addMessage("user", userPrompt);
 
     const response = await fetch(getApiUrl(), {
       method: "POST",
@@ -113,7 +199,7 @@ async function fetchData(userPrompt = "*You act*") {
           parts: [{ text: systemPrompt }],
         },
         // Pass the ENTIRE conversation array instead of just one prompt
-        contents: chatHistory,
+        contents: currentMessages.map(({ id, ...rest }) => rest),
       }),
     });
 
@@ -131,10 +217,7 @@ async function fetchData(userPrompt = "*You act*") {
     }
 
     // Add the bot's response back into the history so it remembers it next time
-    chatHistory.push({
-      role: "model",
-      parts: [{ text: botReply }],
-    });
+    addMessage("model", botReply);
 
     return botReply;
   } catch (error) {
@@ -142,22 +225,18 @@ async function fetchData(userPrompt = "*You act*") {
   }
 }
 
-async function sendMessage() {
+async function sendMessage(text) {
   if (isLoading) return;
 
-  const text = messageInput.value.trim();
+  text = text || messageInput.value.trim();
 
   if (!text) return;
 
-  // Render user message immediately
-  appendMessage("user", text);
   messageInput.value = "";
 
   loading(true);
 
   const reply = await fetchData(text);
-
-  appendMessage("ai", reply);
 
   loading(false);
 }
@@ -170,48 +249,87 @@ async function goOn() {
 
   const reply = await fetchData();
 
-  appendMessage("ai", reply);
-
   loading(false);
 }
 
-async function listenText(text) {
-  const elevenlabsApiKey = "sk_0c01d5697c370e8566d87fbb0fa0c2781adcdcbe48204f1f";
-  const voiceId = VOICES[currentCharacter?.voice || 0].id;
+function populateVoiceList() {
+  voices = window.speechSynthesis.getVoices().filter((voice) => voice.lang.startsWith("en"));
 
-  const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "xi-api-key": elevenlabsApiKey,
-    },
-    body: JSON.stringify({
-      text: text,
-      model_id: "eleven_multilingual_v2", // Updated model ID
-      voice_settings: {
-        stability: 0.5,
-        similarity_boost: 0.75,
-      },
-    }),
-  });
-
-  // Convert response audio stream to a playable URL
-  const audioBlob = await response.blob();
-  const audioUrl = URL.createObjectURL(audioBlob);
-
-  audioPlayer.src = audioUrl;
-  audioPlayer.play();
+  voiceSelect.innerHTML = voices
+    .map(
+      (voice, i) => `
+    <option value="${i}">
+      ${voice.name} (${voice.lang})${voice.default ? " — Default" : ""}
+    </option>
+  `,
+    )
+    .join("");
 }
 
-// function listenText(text) {
-//   window.speechSynthesis.cancel();
-//   const utterance = new SpeechSynthesisUtterance(text);
-//   window.speechSynthesis.speak(utterance);
-// }
+if (window.speechSynthesis.onvoiceschanged !== undefined) {
+  window.speechSynthesis.onvoiceschanged = populateVoiceList;
+}
 
-async function copyText(text) {
-  await navigator.clipboard.writeText(text);
-  Toast.show("Text copied successfully!");
+function speakMessage(messageId) {
+  const message = currentMessages.filter((item) => item.id === messageId)[0];
+  if (!message) return;
+
+  const text = removeEmphasized(message.parts[0].text);
+
+  window.speechSynthesis.cancel();
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  const selectedIndex = voiceSelect.value;
+  if (voices[selectedIndex]) {
+    utterance.voice = voices[selectedIndex];
+  }
+
+  window.speechSynthesis.speak(utterance);
+}
+
+async function listenMessage(messageId) {
+  const message = currentMessages.filter((item) => item.id === messageId)[0];
+  if (!message) return;
+
+  const text = removeEmphasized(message.parts[0].text);
+
+  if (currentCharacter && message.role !== "user") {
+    const voiceId = VOICES[currentCharacter?.voice || 0].id;
+
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "xi-api-key": elevenlabsApiKey,
+      },
+      body: JSON.stringify({
+        text: text,
+        model_id: "eleven_multilingual_v2", // Updated model ID
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.75,
+        },
+      }),
+    });
+
+    // Convert response audio stream to a playable URL
+    const audioBlob = await response.blob();
+    const audioUrl = URL.createObjectURL(audioBlob);
+
+    audioPlayer.src = audioUrl;
+    audioPlayer.play();
+  } else {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    window.speechSynthesis.speak(utterance);
+  }
+}
+
+function copyMessage(messageId) {
+  const message = currentMessages.filter((item) => item.id === messageId)[0];
+  if (!message) return;
+
+  copyText(message.parts[0].text);
 }
 
 function formatCharacter(character) {
@@ -235,7 +353,7 @@ function formatCharacter(character) {
   return formattedChar;
 }
 
-function toggleMessagesDisplay() {
+function toggleChatBody() {
   if (!currentCharacter) return;
   messagesDisplay.classList.toggle("invisible");
 }

@@ -6,11 +6,17 @@ window.addEventListener("error", (event) => {
 function handleError(error) {
   console.error(error);
   alert(error);
-  location.reload();
+  // location.reload();
 }
 
 function stopPropagation(event) {
   event.stopPropagation();
+}
+
+function generateId() {
+  return Array.from(crypto.getRandomValues(new Uint8Array(16)))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 function save(key, value) {
@@ -153,4 +159,9 @@ function escapeHTML(str) {
     };
     return escapeMap[match];
   });
+}
+
+async function copyText(text) {
+  await navigator.clipboard.writeText(text);
+  Toast.show("Text copied successfully!");
 }

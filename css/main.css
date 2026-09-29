@@ -251,19 +251,19 @@ body {
   font-size: 1.5rem;
 }
 
-.messages-container {
+.chat-body {
   flex: 1;
   position: relative;
   padding: 20px;
   overflow-y: auto;
 }
 
-.messages-container .typing-indicator {
+.chat-body .typing-indicator {
   border-bottom-left-radius: 2px;
   margin-top: 16px;
 }
 
-.messages-container .system-notice {
+.chat-body .system-notice {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -278,6 +278,17 @@ body {
 }
 
 .message {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.message.user {
+  align-items: flex-end;
+}
+
+.message .text-box {
   max-width: 80%;
   padding: 12px 16px;
   border-radius: 12px;
@@ -286,31 +297,37 @@ body {
   line-height: 1.5;
   font-size: 0.95rem;
   word-wrap: break-word;
-  white-space: pre-wrap;
 }
 
-.message span {
+.message .text-box span {
   opacity: 0.8;
 }
 
-.message.user {
-  align-self: flex-end;
+.message.user .text-box {
   background-color: var(--blue);
   color: var(--text-color);
   border-bottom-right-radius: 2px;
 }
 
-.message.ai {
-  align-self: flex-start;
+.message.ai .text-box {
   border-bottom-left-radius: 2px;
 }
 
-.message.error {
-  align-self: center;
-  background-color: var(--error-bg);
-  color: var(--error-text);
-  border: 1px solid var(--error-text);
-  font-size: 0.875rem;
+.message .actions {
+  display: flex;
+  gap: 5px;
+}
+
+.message .actions > * {
+  font-size: 1.2rem;
+  padding: 5px;
+  background-color: transparent;
+  color: var(--text-color);
+}
+
+.message.user .text-box .actions {
+  left: auto;
+  right: 0;
 }
 
 .message-input {
