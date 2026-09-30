@@ -48,7 +48,7 @@ function initChat() {
 
   if (currentCharacter && currentMessages.length <= 0) {
     // Add the information and greeting message to the history
-    addMessage("user", `(OOC: Your role: "${currentCharacter.intro}. ${currentCharacter.background}". Scenario: You meet me (a male stranger))`, false);
+    addMessage("user", `(OOC: Your role: "${currentCharacter.intro}. ${currentCharacter.background}". Scenario: "You meet me (a male stranger)")`, false);
     addMessage("model", currentCharacter.greeting);
   }
 
@@ -151,7 +151,7 @@ function updateUI() {
 function applyCharacter(character) {
   currentCharacter = formatCharacter(character);
 
-  systemPrompt = `This is a roleplay chat. Constraints: Keep answers brief (under 3 sentences). Use narrative text like *example* if needed.`;
+  systemPrompt = `This is a roleplay chat. Constraints: Keep answers brief (under 3 sentences). Narration example: *Example*. Message example: Example`;
 
   initChat();
 }
@@ -173,7 +173,7 @@ function appendMessage(data) {
 }
 
 function createMessageHTML(data) {
-  const safeText = escapeHTML(data.parts[0].text).replace(/\*[^*]+\*/g, "<span>$&</span>");
+  const safeText = escapeHTML(data.parts[0].text).replace(/\*(.*?)\*/g, '<span>$1</span>');
   const role = data.role === "user" ? data.role : "ai";
   const isUser = role === "user";
 
@@ -195,11 +195,18 @@ function createMessageHTML(data) {
 
 function loading(state) {
   isLoading = state;
-  typingIndicator.classList.toggle("hidden", !state);
+}
+
+function toggleTypingIndicator(force) {
+  const shouldHide = force !== undefined ? !force : undefined;
+  typingIndicator.classList.toggle("hidden", shouldHide);
+  if (force) scrollChat(true);
 }
 
 async function fetchData(userPrompt = goOnMsg) {
   try {
+    toggleTypingIndicator(true);
+
     addMessage("user", userPrompt, userPrompt !== goOnMsg);
 
     const payload = {
@@ -233,6 +240,8 @@ async function fetchData(userPrompt = goOnMsg) {
     }
 
     addMessage("model", botReply);
+
+    toggleTypingIndicator(false);
 
     return botReply;
   } catch (error) {
