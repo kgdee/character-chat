@@ -214,7 +214,7 @@ body {
 }
 
 .navbar {
-  padding: 16px 20px;
+  padding: 10px 15px;
   border-bottom: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;

@@ -29,7 +29,7 @@
 
       <div class="chat-body">
         <div class="messages-display"></div>
-        <div class="message typing-indicator hidden">
+        <div class="message ai typing-indicator hidden">
           <div class="text-box">...</div>
         </div>
         <div class="system-notice hidden"></div>
@@ -40,7 +40,7 @@
           <i class="bi bi-arrow-counterclockwise"></i>
         </button>
         <textarea class="hide-scrollbar" placeholder="Type a message..." rows="1"></textarea>
-        <button class="button" onclick="sendMessage()">Send</button>
+        <button class="button" onclick="sendMessage()"><i class="bi bi-send"></i></button>
         <button class="go-on-btn hidden" onclick="goOn()"><i class="bi bi-caret-right"></i></button>
       </div>
 
@@ -89,7 +89,9 @@
                 <i class="bi bi-volume-up"></i>
                 <div class="label">
                   Voice
-                  <select class="voice-select"></select>
+                  <select class="voice-select" onchange="changeVoice(this.value)">
+                    <option value="">None</option>
+                  </select>
                 </div>
               </label>
 

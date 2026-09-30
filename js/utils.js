@@ -6,7 +6,7 @@ window.addEventListener("error", (event) => {
 function handleError(error) {
   console.error(error);
   alert(error);
-  // location.reload();
+  location.reload();
 }
 
 function stopPropagation(event) {

@@ -16,22 +16,27 @@ const elevenlabsApiKey = CONFIG.ELEVENLABS_API_KEY;
 const greetings = ["Where should we start?", "What can I help with?", "What should we focus on?"];
 const goOnMsg = "*You act*";
 const maxMessages = 100;
+let systemPrompt = "";
 
 let currentModel = load("currentModel", "gemini-3.5-flash-lite");
 let currentUserName = load("currentUserName", "Traveler");
 // Define your bot's identity and behavioral rules
-let systemPrompt = "";
-let voices = [];
 let currentMessages = [];
 let currentCharacters = load("currentCharacters", INITIAL_CHARACTERS);
 let currentCharacter = null;
 let darkTheme = load("darkTheme", true);
 let isLoading = false;
+let voices = [];
+let selectedVoice = load("selectedVoice", -1);
 
 document.addEventListener("DOMContentLoaded", () => {
   populateVoiceList();
   initChat();
 });
+
+if (window.speechSynthesis.onvoiceschanged !== undefined) {
+  window.speechSynthesis.onvoiceschanged = populateVoiceList;
+}
 
 function getApiUrl() {
   return `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${geminiApiKey}`;
@@ -42,7 +47,8 @@ function initChat() {
   messagesDisplay.innerHTML = "";
 
   if (currentCharacter && currentMessages.length <= 0) {
-    // Add the greeting message to the history
+    // Add the information and greeting message to the history
+    addMessage("user", `(OOC: Your role: "${currentCharacter.intro}. ${currentCharacter.background}". Scenario: You meet me (a male stranger))`, false);
     addMessage("model", currentCharacter.greeting);
   }
 
@@ -52,7 +58,7 @@ function initChat() {
   if (currentMessages.length === 1 && currentMessages[0].role !== "user") speakMessage(currentMessages[0].id);
 }
 
-function addMessage(role, text) {
+function addMessage(role, text, shouldDisplay = true) {
   const msgData = {
     id: generateId(),
     role: role,
@@ -64,7 +70,7 @@ function addMessage(role, text) {
 
   save(`currentMessages_${currentCharacter?.name}`, currentMessages);
 
-  if (text !== goOnMsg) appendMessage(msgData);
+  if (shouldDisplay) appendMessage(msgData);
 }
 
 async function deleteMessage(messageId, showConfirm = false) {
@@ -92,16 +98,18 @@ async function redoMessage(messageId) {
 
   let userMessage = null;
   // Loop backward from the target index to find the most recent user message
-  for (let i = index; i >= 0; i--) {
+  const firstMsgIndex = currentCharacter ? 1 : 0;
+  for (let i = index; i >= firstMsgIndex; i--) {
     if (currentMessages[i].role === "user") {
       userMessage = { ...currentMessages[i] };
+      break;
     }
   }
 
   if (userMessage) {
     await deleteMessage(userMessage.id);
     sendMessage(userMessage.parts[0].text);
-  } else {
+  } else if (currentCharacter) {
     await deleteMessage(messageId);
     goOn();
   }
@@ -117,7 +125,10 @@ async function restartChat() {
 }
 
 function renderMessages() {
-  messagesDisplay.innerHTML = currentMessages.map((item) => (item.parts[0].text === goOnMsg ? "" : createMessageHTML(item))).join("");
+  const messages = currentCharacter ? currentMessages.slice(1) : currentMessages;
+
+  messagesDisplay.innerHTML = messages.map((item) => (item.parts[0].text === goOnMsg ? "" : createMessageHTML(item))).join("");
+  scrollChat();
 }
 
 function updateUI() {
@@ -140,13 +151,16 @@ function updateUI() {
 function applyCharacter(character) {
   currentCharacter = formatCharacter(character);
 
-  systemPrompt = `This is a roleplay chat. Constraints: Keep answers brief (under 3 sentences). Use narrative text like *example* if needed. Your role: "${currentCharacter.intro}. ${currentCharacter.background}". Scenario: You meet me (a male stranger)`;
+  systemPrompt = `This is a roleplay chat. Constraints: Keep answers brief (under 3 sentences). Use narrative text like *example* if needed.`;
 
   initChat();
 }
 
-function scrollToBottom() {
-  chatBody.scrollTop = chatBody.scrollHeight;
+function scrollChat(isSmooth = false) {
+  chatBody.scrollTo({
+    top: chatBody.scrollHeight,
+    behavior: isSmooth ? "smooth" : "auto",
+  });
 }
 
 function appendMessage(data) {
@@ -155,7 +169,7 @@ function appendMessage(data) {
   messagesDisplay.insertAdjacentHTML("beforeend", createMessageHTML(data));
 
   if (data.role !== "user") speakMessage(data.id);
-  scrollToBottom();
+  scrollChat(true);
 }
 
 function createMessageHTML(data) {
@@ -182,28 +196,30 @@ function createMessageHTML(data) {
 function loading(state) {
   isLoading = state;
   typingIndicator.classList.toggle("hidden", !state);
-  if (state) scrollToBottom();
 }
 
-async function fetchData(userPrompt = "*You act*") {
+async function fetchData(userPrompt = goOnMsg) {
   try {
-    addMessage("user", userPrompt);
+    addMessage("user", userPrompt, userPrompt !== goOnMsg);
+
+    const payload = {
+      contents: currentMessages.map(({ id, ...rest }) => rest),
+    };
+
+    if (systemPrompt && systemPrompt.trim()) {
+      payload.systemInstruction = {
+        parts: [{ text: systemPrompt }],
+      };
+    }
 
     const response = await fetch(getApiUrl(), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [{ text: systemPrompt }],
-        },
-        // Pass the ENTIRE conversation array instead of just one prompt
-        contents: currentMessages.map(({ id, ...rest }) => rest),
-      }),
+      body: JSON.stringify(payload),
     });
 
-    // Handle HTTP error statuses (e.g., 404, 500, 429)
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error?.message || `API Request failed with status ${response.status}`);
@@ -216,7 +232,6 @@ async function fetchData(userPrompt = "*You act*") {
       throw new Error("Invalid response format received from the API.");
     }
 
-    // Add the bot's response back into the history so it remembers it next time
     addMessage("model", botReply);
 
     return botReply;
@@ -255,10 +270,11 @@ async function goOn() {
 function populateVoiceList() {
   voices = window.speechSynthesis.getVoices().filter((voice) => voice.lang.startsWith("en"));
 
-  voiceSelect.innerHTML = voices
+  voiceSelect.innerHTML = `<option value="">None</option>`;
+  voiceSelect.innerHTML += voices
     .map(
       (voice, i) => `
-    <option value="${i}">
+    <option value="${i + 1}"${selectedVoice === i + 1 ? " selected" : ""}>
       ${voice.name} (${voice.lang})${voice.default ? " — Default" : ""}
     </option>
   `,
@@ -266,8 +282,11 @@ function populateVoiceList() {
     .join("");
 }
 
-if (window.speechSynthesis.onvoiceschanged !== undefined) {
-  window.speechSynthesis.onvoiceschanged = populateVoiceList;
+function changeVoice(index) {
+  selectedVoice = parseInt(index);
+  save("selectedVoice", selectedVoice);
+
+  Toast.show("Voice changed successfully.");
 }
 
 function speakMessage(messageId) {
@@ -279,12 +298,11 @@ function speakMessage(messageId) {
   window.speechSynthesis.cancel();
 
   const utterance = new SpeechSynthesisUtterance(text);
-  const selectedIndex = voiceSelect.value;
-  if (voices[selectedIndex]) {
-    utterance.voice = voices[selectedIndex];
-  }
 
-  window.speechSynthesis.speak(utterance);
+  if (voices[selectedVoice]) {
+    utterance.voice = voices[selectedVoice];
+    window.speechSynthesis.speak(utterance);
+  }
 }
 
 async function listenMessage(messageId) {
@@ -375,6 +393,7 @@ async function changeUserName() {
 function changeModel(model) {
   currentModel = model;
   save("currentModel", currentModel);
+  Toast.show("Model changed successfully.");
 }
 
 function toggleTheme(force = undefined) {
