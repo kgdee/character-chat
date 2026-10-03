@@ -18,31 +18,35 @@
   </head>
   <body class="dark-theme">
     <audio id="audioPlayer" hidden></audio>
-    <div class="app container">
+    <div class="app">
       <header class="navbar">
-        <div class="logo" onclick="toggleChatBody()"><img src="assets/images/logo.png" /> <span>Ch. Chat</span></div>
-        <img class="avatar hidden" src="assets/images/default-avatar.jpg" />
-        <button class="menu-btn" onclick="toggleMenuModal()">
-          <i class="bi bi-list"></i>
-        </button>
+        <div class="content container">
+          <div class="logo" onclick="toggleChatBody()"><img src="assets/images/logo.png" /> <span>Ch. Chat</span></div>
+          <img class="avatar hidden" src="assets/images/default-avatar.jpg" />
+          <button class="menu-btn" onclick="toggleMenuModal()">
+            <i class="bi bi-list"></i>
+          </button>
+        </div>
       </header>
 
-      <div class="chat-body">
-        <div class="messages-display"></div>
-        <div class="message ai typing-indicator hidden">
-          <div class="text-box">...</div>
+      <main class="container">
+        <div class="chat-body">
+          <div class="messages-display"></div>
+          <div class="message ai typing-indicator hidden">
+            <div class="text-box">...</div>
+          </div>
+          <div class="system-notice hidden"></div>
         </div>
-        <div class="system-notice hidden"></div>
-      </div>
 
-      <div class="message-input">
-        <button class="button btn-danger" onclick="restartChat()">
-          <i class="bi bi-arrow-counterclockwise"></i>
-        </button>
-        <textarea class="hide-scrollbar" placeholder="Type a message..." rows="1"></textarea>
-        <button class="button" onclick="sendMessage()"><i class="bi bi-send"></i></button>
-        <button class="go-on-btn hidden" onclick="goOn()"><i class="bi bi-caret-right"></i></button>
-      </div>
+        <div class="message-input">
+          <button class="button btn-danger" onclick="restartChat()">
+            <i class="bi bi-arrow-counterclockwise"></i>
+          </button>
+          <textarea placeholder="Type a message..." rows="1"></textarea>
+          <button class="button" onclick="sendMessage()"><i class="bi bi-send"></i></button>
+          <button class="go-on-btn hidden" onclick="goOn()"><i class="bi bi-caret-right"></i></button>
+        </div>
+      </main>
 
       <!-- Menu modal -->
       <div class="menu-modal list-modal modal hidden" onclick="toggleMenuModal()">
@@ -53,7 +57,7 @@
             </button>
             <div class="title">Menu</div>
 
-            <div class="item-list hide-scrollbar">
+            <div class="item-list">
               <label class="item" onclick="CharactersModal.open()">
                 <i class="bi bi-heart"></i>
                 <div class="label">
@@ -119,7 +123,7 @@
           </button>
           <div class="title">Edit Character</div>
 
-          <div class="modal-body hide-scrollbar">
+          <div class="modal-body">
             <label class="image-input">
               Image
               <img src="assets/images/default-avatar.jpg" />
@@ -173,7 +177,7 @@
           </button>
           <div class="title">Characters</div>
 
-          <div class="modal-body hide-scrollbar">
+          <div class="modal-body">
             <div class="items-grid"></div>
           </div>
 

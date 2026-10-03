@@ -161,14 +161,14 @@ function appendMessage(data) {
 }
 
 function createMessageHTML(data) {
-  const safeText = escapeHTML(data.parts[0].text).replace(/\*(.*?)\*/g, "<span>$1</span>");
+  const text = formatMessageText(escapeHTML(data.parts[0].text));
   const role = data.role === "user" ? data.role : "ai";
   const isUser = role === "user";
 
   const messageHtml = `
   <div class="message ${role}" data-id="${data.id}">
     <div class="text-box">
-      ${safeText}
+      ${text}
     </div>
     <div class="actions">
       <button onclick="speakMessage('${data.id}')"><i class="bi bi-volume-up"></i></button>
@@ -179,6 +179,15 @@ function createMessageHTML(data) {
   </div>`;
 
   return messageHtml;
+}
+
+function formatMessageText(text) {
+  return text.replace(/\*(.*?)\*/g, (match, p1) => {
+    if (p1.length >= 100) {
+      return `<span>${p1}</span><br><br>`;
+    }
+    return `<span>${p1}</span>`;
+  });
 }
 
 function loading(state) {
