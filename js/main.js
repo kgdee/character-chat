@@ -20,7 +20,6 @@ let systemPrompt = "";
 
 let currentModel = load("currentModel", "gemini-3.5-flash-lite");
 let currentUserName = load("currentUserName", "Traveler");
-// Define your bot's identity and behavioral rules
 let currentMessages = [];
 let currentCharacters = load("currentCharacters", INITIAL_CHARACTERS);
 let currentCharacter = null;
@@ -38,7 +37,7 @@ if (window.speechSynthesis.onvoiceschanged !== undefined) {
   window.speechSynthesis.onvoiceschanged = populateVoiceList;
 }
 
-function getApiUrl() {
+function getGeminiApiUrl() {
   return `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${geminiApiKey}`;
 }
 
@@ -66,11 +65,16 @@ function addMessage(role, text, shouldDisplay = true) {
   };
 
   currentMessages.push(msgData);
-  if (currentMessages.length > maxMessages) currentMessages.shift();
-
-  save(`currentMessages_${currentCharacter?.name}`, currentMessages);
+  if (currentMessages.length > maxMessages) {
+    if (currentCharacter) currentMessages.splice(1, 1);
+    else currentMessages.shift();
+  }
 
   if (shouldDisplay) appendMessage(msgData);
+}
+
+function saveMessages() {
+  save(`currentMessages_${currentCharacter?.name}`, currentMessages);
 }
 
 async function deleteMessage(messageId, showConfirm = false) {
@@ -84,35 +88,19 @@ async function deleteMessage(messageId, showConfirm = false) {
 
   currentMessages = currentMessages.slice(0, index);
 
-  save(`currentMessages_${currentCharacter?.name}`, currentMessages);
+  saveMessages();
 
   updateUI();
+
+  return true;
 }
 
 async function redoMessage(messageId) {
-  const index = currentMessages.findIndex((item) => item.id === messageId);
-  if (index === -1) return;
-
   const confirmed = await ConfirmModal.confirmAction(`Redo message?`, "This action cannot be undone.");
   if (!confirmed) return;
 
-  let userMessage = null;
-  // Loop backward from the target index to find the most recent user message
-  const firstMsgIndex = currentCharacter ? 1 : 0;
-  for (let i = index; i >= firstMsgIndex; i--) {
-    if (currentMessages[i].role === "user") {
-      userMessage = { ...currentMessages[i] };
-      break;
-    }
-  }
-
-  if (userMessage) {
-    await deleteMessage(userMessage.id);
-    sendMessage(userMessage.parts[0].text);
-  } else if (currentCharacter) {
-    await deleteMessage(messageId);
-    goOn();
-  }
+  const isDeleted = await deleteMessage(messageId);
+  if (isDeleted) fetchData();
 }
 
 async function restartChat() {
@@ -120,12 +108,12 @@ async function restartChat() {
   if (!confirmed) return;
 
   currentMessages = [];
-  save(`currentMessages_${currentCharacter?.name}`, currentMessages);
+  saveMessages();
   initChat();
 }
 
 function renderMessages() {
-  const messages = currentCharacter ? currentMessages.slice(1) : currentMessages;
+  const messages = (currentCharacter ? currentMessages.slice(1) : currentMessages).slice(-50);
 
   messagesDisplay.innerHTML = messages.map((item) => (item.parts[0].text === goOnMsg ? "" : createMessageHTML(item))).join("");
   scrollChat();
@@ -173,7 +161,7 @@ function appendMessage(data) {
 }
 
 function createMessageHTML(data) {
-  const safeText = escapeHTML(data.parts[0].text).replace(/\*(.*?)\*/g, '<span>$1</span>');
+  const safeText = escapeHTML(data.parts[0].text).replace(/\*(.*?)\*/g, "<span>$1</span>");
   const role = data.role === "user" ? data.role : "ai";
   const isUser = role === "user";
 
@@ -203,11 +191,13 @@ function toggleTypingIndicator(force) {
   if (force) scrollChat(true);
 }
 
-async function fetchData(userPrompt = goOnMsg) {
+async function fetchData(userPrompt) {
   try {
+    loading(true);
+
     toggleTypingIndicator(true);
 
-    addMessage("user", userPrompt, userPrompt !== goOnMsg);
+    if (userPrompt) addMessage("user", userPrompt, userPrompt !== goOnMsg);
 
     const payload = {
       contents: currentMessages.map(({ id, ...rest }) => rest),
@@ -219,7 +209,7 @@ async function fetchData(userPrompt = goOnMsg) {
       };
     }
 
-    const response = await fetch(getApiUrl(), {
+    const response = await fetch(getGeminiApiUrl(), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -240,8 +230,11 @@ async function fetchData(userPrompt = goOnMsg) {
     }
 
     addMessage("model", botReply);
+    saveMessages();
 
     toggleTypingIndicator(false);
+
+    loading(false);
 
     return botReply;
   } catch (error) {
@@ -249,7 +242,7 @@ async function fetchData(userPrompt = goOnMsg) {
   }
 }
 
-async function sendMessage(text) {
+function sendMessage(text) {
   if (isLoading) return;
 
   text = text || messageInput.value.trim();
@@ -258,22 +251,12 @@ async function sendMessage(text) {
 
   messageInput.value = "";
 
-  loading(true);
-
-  const reply = await fetchData(text);
-
-  loading(false);
+  fetchData(text);
 }
 
-async function goOn() {
-  if (isLoading) return;
+function goOn() {
   if (!currentCharacter) return;
-
-  loading(true);
-
-  const reply = await fetchData();
-
-  loading(false);
+  sendMessage(goOnMsg);
 }
 
 function populateVoiceList() {

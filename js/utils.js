@@ -1,3 +1,9 @@
+const isLocalhost = Boolean(
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "[::1]" || // IPv6 loopback
+  window.location.hostname.match(/^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/), // 127.0.0.1/8 IPv4 loopback
+);
+
 window.addEventListener("error", (event) => {
   const error = `${event.type}: ${event.message}`;
   handleError(error);
@@ -6,7 +12,7 @@ window.addEventListener("error", (event) => {
 function handleError(error) {
   console.error(error);
   alert(error);
-  location.reload();
+  if (!isLocalhost) location.reload();
 }
 
 function stopPropagation(event) {
